@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+
+$:.push "lib"
+
+require 'rubygems'
+require 'floating_head'
+
+FloatingHead.new.run
