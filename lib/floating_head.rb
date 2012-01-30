@@ -194,7 +194,7 @@ class FloatingHead
     when m = /^!up (\d+)/.match(message)
       up(chat, m[1])
     else
-      reply(chat, "Didn't understand '#{message}'!")
+      reply(chat, "Didn't understand '#{message}'! Try '!help' for help.")
     end
   end
 
