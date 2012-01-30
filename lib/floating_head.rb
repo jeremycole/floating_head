@@ -20,6 +20,19 @@ class FloatingHead
     @camera = SerialPanTilt.new(@options.device)
   end
 
+  def usage(exit_code)
+    puts
+    puts "Usage: floating_head -d <device> [-f <data-file>]"
+    puts
+    puts "  --device, -d"
+    puts "    The serial port device to use (required)."
+    puts
+    puts "  --data-file, -f"
+    puts "    The data file to use (default floating_head.db)."
+    puts
+    exit exit_code
+  end
+
   def parse_arguments
     @options.device       = nil
     @options.data_file    = "floating_head.db"
@@ -33,6 +46,7 @@ class FloatingHead
     getopt.each do |opt, arg|
       case opt
         when "--help"
+          usage 0
         when "--device"
           @options.device = arg
         when "--data-file"
