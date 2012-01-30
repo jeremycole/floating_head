@@ -13,9 +13,11 @@ class FloatingHead
     @options = OpenStruct.new
     parse_arguments
 
+    @data = SQLite3::Database.new(@options.data_file)
+    create_locations_table
+
     @skype_events = SkypeEvents.new("floating_head")
     @camera = SerialPanTilt.new(@options.device)
-    @data = SQLite3::Database.new(@options.data_file)
   end
 
   def parse_arguments
@@ -47,6 +49,12 @@ class FloatingHead
     end
     
     self
+  end
+
+  def create_locations_table
+    unless @data.query("SELECT name FROM sqlite_master WHERE type='table'").to_a.flatten.include? "locations"
+      @data.query("CREATE TABLE locations (name varchar(30), pan int, tilt int)")
+    end
   end
 
   def active_call_partner?(handle)
