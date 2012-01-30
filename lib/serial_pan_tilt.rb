@@ -29,13 +29,13 @@ class SerialPanTilt
   end
 
   def pan(degrees)
-    write("P#{degrees.to_i}\n")
-    @pan_position = degrees
+    @pan_position = degrees.to_i
+    write("P#{@pan_position}\n")
   end
 
   def tilt(degrees)
-    write("T#{degrees.to_i}\n")
-    @tilt_position = degrees
+    @tilt_position = degrees.to_i
+    write("T#{@tilt_position}\n")
   end
   
   def pan_tilt(pan_degrees, tilt_degrees)
