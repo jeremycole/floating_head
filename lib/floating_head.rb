@@ -22,7 +22,7 @@ class FloatingHead
 
   def usage(exit_code)
     puts
-    puts "Usage: floating_head -d <device> [-f <data-file>]"
+    puts "Usage: floating_head -d <device> [-f <data-file>] [-l <limits>]"
     puts
     puts "  --device, -d"
     puts "    The serial port device to use (required)."
@@ -30,17 +30,26 @@ class FloatingHead
     puts "  --data-file, -f"
     puts "    The data file to use (default floating_head.db)."
     puts
+    puts "  --limits, -l"
+    puts "    The pan/tilt limits to enforce, comma-separated list of:"
+    puts "    pan min, pan max, tilt min, tilt max, e.g. '35,125,40,110'."
+    puts
     exit exit_code
   end
 
   def parse_arguments
     @options.device       = nil
     @options.data_file    = "floating_head.db"
-    
+    @options.pan_min      = 60
+    @options.pan_max      = 120
+    @options.tilt_min     = 60
+    @options.tilt_max     = 120
+
     getopt = GetoptLong.new(
       [ "--help",             "-?",     GetoptLong::NO_ARGUMENT ],
       [ "--device",           "-d",     GetoptLong::REQUIRED_ARGUMENT ],
-      [ "--data-file",        "-f",     GetoptLong::REQUIRED_ARGUMENT ]
+      [ "--data-file",        "-f",     GetoptLong::REQUIRED_ARGUMENT ],
+      [ "--limits",           "-l",     GetoptLong::REQUIRED_ARGUMENT ]
     )
     
     getopt.each do |opt, arg|
@@ -51,6 +60,15 @@ class FloatingHead
           @options.device = arg
         when "--data-file"
           @options.data_file = arg
+        when "--limits"
+          if (limits = arg.split(",")).size == 4
+            @options.pan_min    = limits[0]
+            @options.pan_max    = limits[1]
+            @options.tilt_min   = limits[2]
+            @options.tilt_max   = limits[3]
+          else
+            raise "Incorrect limits specified"
+          end
       end
     end
     
@@ -135,9 +153,21 @@ class FloatingHead
     end    
   end
 
+  def limits_exceeded(pan, tilt)
+    return "pan < (#{@options.pan_min})"    if pan  < @options.pan_min
+    return "pan > (#{@options.pan_max})"    if pan  > @options.pan_max
+    return "tilt < (#{@options.tilt_min})"  if tilt < @options.tilt_min
+    return "tilt > (#{@options.tilt_max})"  if tilt > @options.tilt_max
+    nil
+  end
+
   def pos(chat, pan, tilt)
-    camera.pan_tilt(pan, tilt)
-    reply(chat, "Going to (#{pan}, #{tilt})!")
+    if reason = limits_exceeded?(pan, tilt)
+      reply(chat, "Limits exceeded (#{reason})! Try to be reasonable.")
+    else
+      camera.pan_tilt(pan, tilt)
+      reply(chat, "Going to (#{pan}, #{tilt})!")
+    end
   end
 
   def go(chat, name)
