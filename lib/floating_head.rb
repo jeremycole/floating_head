@@ -62,10 +62,10 @@ class FloatingHead
           @options.data_file = arg
         when "--limits"
           if (limits = arg.split(",")).size == 4
-            @options.pan_min    = limits[0]
-            @options.pan_max    = limits[1]
-            @options.tilt_min   = limits[2]
-            @options.tilt_max   = limits[3]
+            @options.pan_min    = limits[0].to_i
+            @options.pan_max    = limits[1].to_i
+            @options.tilt_min   = limits[2].to_i
+            @options.tilt_max   = limits[3].to_i
           else
             raise "Incorrect limits specified"
           end
