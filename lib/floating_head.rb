@@ -153,7 +153,7 @@ class FloatingHead
     end    
   end
 
-  def limits_exceeded(pan, tilt)
+  def limits_exceeded?(pan, tilt)
     return "pan < (#{@options.pan_min})"    if pan  < @options.pan_min
     return "pan > (#{@options.pan_max})"    if pan  > @options.pan_max
     return "tilt < (#{@options.tilt_min})"  if tilt < @options.tilt_min
