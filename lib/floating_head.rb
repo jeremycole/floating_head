@@ -22,17 +22,22 @@ class FloatingHead
 
   def usage(exit_code)
     puts
-    puts "Usage: floating_head -d <device> [-f <data-file>] [-l <limits>]"
+    puts "Usage: floating_head -d <device> [options]"
     puts
-    puts "  --device, -d"
+    puts "  --device <device>, -d <device>"
     puts "    The serial port device to use (required)."
     puts
-    puts "  --data-file, -f"
+    puts "  --data-file <file>, -f <file>"
     puts "    The data file to use (default floating_head.db)."
     puts
-    puts "  --limits, -l"
+    puts "  --limits <limits>, -l <limits>"
     puts "    The pan/tilt limits to enforce, comma-separated list of:"
     puts "    pan min, pan max, tilt min, tilt max, e.g. '35,125,40,110'."
+    puts
+    puts "  --poll <seconds>, -p <seconds>"
+    puts "    The poll interval to check for new unread messages in Skype."
+    puts "    More aggressive polling may make Skype slow, but lazier polling"
+    puts "    makes the camera less responsive. (default 0.1 seconds)"
     puts
     exit exit_code
   end
@@ -44,12 +49,14 @@ class FloatingHead
     @options.pan_max      = 120
     @options.tilt_min     = 60
     @options.tilt_max     = 120
+    @options.poll         = 0.1
 
     getopt = GetoptLong.new(
       [ "--help",             "-?",     GetoptLong::NO_ARGUMENT ],
       [ "--device",           "-d",     GetoptLong::REQUIRED_ARGUMENT ],
       [ "--data-file",        "-f",     GetoptLong::REQUIRED_ARGUMENT ],
-      [ "--limits",           "-l",     GetoptLong::REQUIRED_ARGUMENT ]
+      [ "--limits",           "-l",     GetoptLong::REQUIRED_ARGUMENT ],
+      [ "--poll",             "-p",     GetoptLong::REQUIRED_ARGUMENT ]
     )
     
     getopt.each do |opt, arg|
@@ -69,6 +76,8 @@ class FloatingHead
           else
             raise "Incorrect limits specified"
           end
+        when "--poll"
+          @options.poll = arg.to_f
       end
     end
     
@@ -87,11 +96,6 @@ class FloatingHead
     unless @data.query("SELECT name FROM sqlite_master WHERE type='table'").to_a.flatten.include? "locations"
       @data.query("CREATE TABLE locations (name varchar(30), pan int, tilt int)")
     end
-  end
-
-  def active_call_partner?(handle)
-    return nil unless call = skype_events.each_call.first
-    call["PARTNER_HANDLE"] == handle
   end
 
   def reply(chat, message)
@@ -231,19 +235,28 @@ class FloatingHead
   def run
     # Throw away any unread messages before we get started, in case there
     # are commands in there that we missed.
-    skype_events.each_unread_chatmessage {}
+    begin
+      skype_events.each_unread_chatmessage {}
+    rescue Appscript::CommandError
+    end
 
     while true
-      sleep 0.1
-      skype_events.each_unread_chatmessage do |chat, chatmessage|
-        handle  = chatmessage['FROM_HANDLE']
-        message = chatmessage['BODY']
-        unless active_call_partner? handle
-          puts "Got message from #{handle}, who is not my active call partner!"
-          next
+      sleep @options.poll
+      next unless partner = skype_events.active_call_partner
+      begin
+        skype_events.each_unread_chatmessage(partner) do |chat, chatmessage|
+          handle  = chatmessage['FROM_HANDLE']
+          message = chatmessage['BODY']
+          unless skype_events.active_call_partner? handle
+            puts "Got message from #{handle}, who is not my active call partner!"
+            next
+          end
+          puts "Message from #{handle}: #{message}"
+          handle_command(chat, message)
         end
-        puts "Message from #{handle}: #{message}"
-        handle_command(chat, message)
+      rescue Appscript::CommandError
+        puts "Skype doesn't seem to be running. Maybe it crashed? Waiting."
+        sleep 5
       end
     end
   end
