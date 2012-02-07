@@ -50,6 +50,30 @@ class SkypeEvents
     skype.send_ :script_name => @script_name, :command => command_text
   end
 
+  # -> "GET VIDEO_IN"
+  # <- "VIDEO_IN <device>"
+  def api_get_video_in
+    result_pattern = /VIDEO_IN (.*)/
+    result = command("GET VIDEO_IN")
+    unless video_in_match = result_pattern.match(result)
+      return nil
+    end
+
+    video_in_match[1]
+  end
+
+  # -> "SET VIDEO_IN <device>"
+  # <- "VIDEO_IN <device>"
+  def api_set_video_in(device)
+    result_pattern = /VIDEO_IN (.*)/
+    result = command("SET VIDEO_IN #{device}")
+    unless video_in_match = result_pattern.match(result)
+      return nil
+    end
+
+    video_in_match[1] == device
+  end
+
   # -> "SEARCH ACTIVECALLS"
   # <- "CALLS <call1>[, <call2>]
   def api_search_activecalls
