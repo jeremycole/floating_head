@@ -42,6 +42,9 @@ class FloatingHead
     puts "    More aggressive polling may make Skype slow, but lazier polling"
     puts "    makes the camera less responsive. (default 0.1 seconds)"
     puts
+    puts "  --skype-api, -s"
+    puts "    Allow raw commands to be passed to the Skype API with !skype."
+    puts
     exit exit_code
   end
 
@@ -53,13 +56,15 @@ class FloatingHead
     @options.tilt_min     = 60
     @options.tilt_max     = 120
     @options.poll         = 0.1
+    @options.skype_api    = false
 
     getopt = GetoptLong.new(
       [ "--help",             "-?",     GetoptLong::NO_ARGUMENT ],
       [ "--device",           "-d",     GetoptLong::REQUIRED_ARGUMENT ],
       [ "--data-file",        "-f",     GetoptLong::REQUIRED_ARGUMENT ],
       [ "--limits",           "-l",     GetoptLong::REQUIRED_ARGUMENT ],
-      [ "--poll",             "-p",     GetoptLong::REQUIRED_ARGUMENT ]
+      [ "--poll",             "-p",     GetoptLong::REQUIRED_ARGUMENT ],
+      [ "--skype-api",        "-s",     GetoptLong::NO_ARGUMENT ]
     )
     
     getopt.each do |opt, arg|
@@ -81,6 +86,8 @@ class FloatingHead
           end
         when "--poll"
           @options.poll = arg.to_f
+        when "--skype-api"
+          @options.skype_api = true
       end
     end
     
@@ -107,7 +114,7 @@ class FloatingHead
   end
 
   def help(chat)
-    help_message = [
+    help_messages = [
       "The following commands are understood:",
       "  !help | Show this help.",
       "  !list | List all saved camera positions.",
@@ -122,10 +129,15 @@ class FloatingHead
       "  @<name> | Alias for !go <name>.",
       "  !vol <percent> | Set the output (speaker) volume to <percent>.",
       "  !mic <percent> | Set the input (microphone) volume to <percent>.",
-      "",
-    ].join("\n")
-    
-    reply(chat, help_message)
+    ]
+
+    if @options.skype_api
+      help_messages.push(
+        "  !skype <command> | Run a raw Skype API command."
+      )
+    end
+
+    reply(chat, help_messages.join("\n") + "\n")
   end
 
   def list(chat)
@@ -226,6 +238,11 @@ class FloatingHead
     set_device_volume(chat, :input_volume, level.to_i)
   end
 
+  def skype_api(chat, command)
+    result = skype_events.command(command)
+    reply(chat, "Skype response: #{result}")
+  end
+
   def handle_command(chat, message)
     case
     when m = /^!help/.match(message)
@@ -255,6 +272,8 @@ class FloatingHead
       vol(chat, m[1])
     when m = /^!mic (\d+)/.match(message)
       mic(chat, m[1])
+    when m = /^!skype (.*)/.match(message)
+      skype_api(chat, m[1])
     else
       reply(chat, "Didn't understand '#{message}'! Try '!help' for help.")
     end
