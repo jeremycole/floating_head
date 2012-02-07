@@ -3,6 +3,7 @@ require 'serial_pan_tilt'
 require 'sqlite3'
 require 'ostruct'
 require 'getoptlong'
+require 'osax'
 
 class FloatingHead
   attr_accessor :skype_events
@@ -15,6 +16,8 @@ class FloatingHead
 
     @data = SQLite3::Database.new(@options.data_file)
     create_locations_table
+
+    @osax = OSAX.osax
 
     @skype_events = SkypeEvents.new("floating_head")
     @camera = SerialPanTilt.new(@options.device)
@@ -100,7 +103,7 @@ class FloatingHead
 
   def reply(chat, message)
     puts "Replying with:\n#{message}\n"
-    skype_events.api_chatmessage(chat["_id"], message)
+    skype_events.api_chatmessage(chat["_id"], message) if chat
   end
 
   def help(chat)
@@ -117,6 +120,8 @@ class FloatingHead
       "  !up <deg> | Tilt the camera <deg> degrees up.",
       "  !go <name> | Go to saved camera position <name>.",
       "  @<name> | Alias for !go <name>.",
+      "  !vol <percent> | Set the output (speaker) volume to <percent>.",
+      "  !mic <percent> | Set the input (microphone) volume to <percent>.",
       "",
     ].join("\n")
     
@@ -202,6 +207,25 @@ class FloatingHead
     pos(chat, camera.pan_position, camera.tilt_position+degrees.to_i)
   end
 
+  def set_device_volume(chat, device, level)
+    if level >= 0 and level <= 100
+      @osax.set_volume device => level
+      reply(chat, "Volume (#{device}) set to #{level}.")
+    else
+      reply(chat, "Volume (#{device}) must be between 0 and 100!")
+    end
+  end
+
+  def vol(chat, level)
+    puts "VOL: #{level}"
+    set_device_volume(chat, :output_volume, level.to_i)
+  end
+
+  def mic(chat, level)
+    puts "MIC: #{level}"
+    set_device_volume(chat, :input_volume, level.to_i)
+  end
+
   def handle_command(chat, message)
     case
     when m = /^!help/.match(message)
@@ -227,6 +251,10 @@ class FloatingHead
       down(chat, m[1])
     when m = /^!up (\d+)/.match(message)
       up(chat, m[1])
+    when m = /^!vol (\d+)/.match(message)
+      vol(chat, m[1])
+    when m = /^!mic (\d+)/.match(message)
+      mic(chat, m[1])
     else
       reply(chat, "Didn't understand '#{message}'! Try '!help' for help.")
     end
